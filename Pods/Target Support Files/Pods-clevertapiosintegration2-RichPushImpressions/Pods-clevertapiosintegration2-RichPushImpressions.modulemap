@@ -1,0 +1,6 @@
+framework module Pods_clevertapiosintegration2_RichPushImpressions {
+  umbrella header "Pods-clevertapiosintegration2-RichPushImpressions-umbrella.h"
+
+  export *
+  module * { export * }
+}

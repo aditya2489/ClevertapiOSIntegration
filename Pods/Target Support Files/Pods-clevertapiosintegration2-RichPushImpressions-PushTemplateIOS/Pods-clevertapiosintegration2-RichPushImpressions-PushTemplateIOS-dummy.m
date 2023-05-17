@@ -1,0 +1,5 @@
+#import <Foundation/Foundation.h>
+@interface PodsDummy_Pods_clevertapiosintegration2_RichPushImpressions_PushTemplateIOS : NSObject
+@end
+@implementation PodsDummy_Pods_clevertapiosintegration2_RichPushImpressions_PushTemplateIOS
+@end
