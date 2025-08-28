@@ -178,12 +178,14 @@ code_sign_if_enabled() {
 if [[ "$CONFIGURATION" == "Debug" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/CleverTap-iOS-SDK/CleverTapSDK.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/SDWebImage/SDWebImage.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/mParticle-Apple-SDK/mParticle_Apple_SDK.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CTNotificationService/CTNotificationService.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CTNotificationContent/CTNotificationContent.framework"
 fi
 if [[ "$CONFIGURATION" == "Release" ]]; then
   install_framework "${BUILT_PRODUCTS_DIR}/CleverTap-iOS-SDK/CleverTapSDK.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/SDWebImage/SDWebImage.framework"
+  install_framework "${BUILT_PRODUCTS_DIR}/mParticle-Apple-SDK/mParticle_Apple_SDK.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CTNotificationService/CTNotificationService.framework"
   install_framework "${BUILT_PRODUCTS_DIR}/CTNotificationContent/CTNotificationContent.framework"
 fi

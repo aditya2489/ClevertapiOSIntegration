@@ -27,7 +27,20 @@
 #import "CleverTapPushNotificationDelegate.h"
 #import "CleverTapURLDelegate.h"
 #import "CleverTap+InAppNotifications.h"
-#import "CleverTap+DCDomain.h"
+#import "CleverTap+SCDomain.h"
+#import "CleverTap+PushPermission.h"
+#import "CTLocalInApp.h"
+#import "CleverTap+CTVar.h"
+#import "CTVar.h"
+#import "LeanplumCT.h"
+#import "CTInAppTemplateBuilder.h"
+#import "CTAppFunctionBuilder.h"
+#import "CTTemplatePresenter.h"
+#import "CTTemplateProducer.h"
+#import "CTCustomTemplateBuilder.h"
+#import "CTCustomTemplate.h"
+#import "CTTemplateContext.h"
+#import "CTCustomTemplatesManager.h"
 
 FOUNDATION_EXPORT double CleverTapSDKVersionNumber;
 FOUNDATION_EXPORT const unsigned char CleverTapSDKVersionString[];

@@ -5,28 +5,24 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLName</key>
 			<string>android</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>cltanalytics</string>
+				<string>com.cltanalytics</string>
 			</array>
 		</dict>
 	</array>
-	<key>CFBundleExecutable</key>
-	<string></string>
-	<key>NSLocationUsageDescription</key>
-	<string>We need Permission to capture Location</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Please Allow</string>
+	<key>CleverTapAccountID</key>
+	<string>TEST-5WK-87Z-666Z</string>
 	<key>CleverTapDisableIDFV</key>
 	<true/>
 	<key>CleverTapRegion</key>
 	<string>eu1</string>
 	<key>CleverTapToken</key>
 	<string>TEST-1ab-305</string>
-	<key>CleverTapAccountID</key>
-	<string>TEST-5WK-87Z-666Z</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

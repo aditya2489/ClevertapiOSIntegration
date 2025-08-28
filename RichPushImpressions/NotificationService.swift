@@ -35,6 +35,7 @@ class NotificationService: CTNotificationServiceExtension {
             CleverTap.sharedInstance()?.onUserLogin(profile)
             
         }
+        
         CleverTap.sharedInstance()?.recordNotificationViewedEvent(withData: request.content.userInfo)
         
         

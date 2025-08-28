@@ -7,12 +7,21 @@
 #import "CleverTapInstanceConfig.h"
 #import "CleverTapInstanceConfigPrivate.h"
 #import "CTLoginInfoProvider.h"
+#import "CTAES.h"
+#import "CTPreferences.h"
+#import "CTUtils.h"
+#import "CTUIUtils.h"
+#import "CTUserInfoMigrator.h"
+#import "CTDispatchQueueManager.h"
+#import "CTMultiDelegateManager.h"
+#import "CTProfileBuilder.h"
 
 static const void *const kProfileBackgroundQueueKey = &kProfileBackgroundQueueKey;
 static const double kProfilePersistenceIntervalSeconds = 30.f;
 NSString* const kWR_KEY_EVENTS = @"local_events_cache";
 NSString* const kLocalCacheLastSync = @"local_cache_last_sync";
 NSString* const kLocalCacheExpiry = @"local_cache_expiry";
+NSString *const CT_ENCRYPTION_KEY = @"CLTAP_ENCRYPTION_KEY";
 
 @interface CTLocalDataStore() {
     NSMutableDictionary *localProfileUpdateExpiryStore;
@@ -23,21 +32,28 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
 
 @property (nonatomic, strong) CleverTapInstanceConfig *config;
 @property (nonatomic, strong) CTDeviceInfo *deviceInfo;
+@property (nonatomic, strong) NSArray *piiKeys;
+@property (nonatomic, strong) CTDispatchQueueManager *dispatchQueueManager;
 
 @end
 
 @implementation CTLocalDataStore
 
-- (instancetype)initWithConfig:(CleverTapInstanceConfig *)config profileValues:(NSDictionary*)profileValues andDeviceInfo:(CTDeviceInfo*)deviceInfo {
+- (instancetype)initWithConfig:(CleverTapInstanceConfig *)config profileValues:(NSDictionary*)profileValues andDeviceInfo:(CTDeviceInfo*)deviceInfo dispatchQueueManager:(CTDispatchQueueManager*)dispatchQueueManager {
     if (self = [super init]) {
         _config = config;
         _deviceInfo = deviceInfo;
+        self.dispatchQueueManager = dispatchQueueManager;
         localProfileUpdateExpiryStore = [NSMutableDictionary new];
         _backgroundQueue = dispatch_queue_create([[NSString stringWithFormat:@"com.clevertap.profileBackgroundQueue:%@", _config.accountId] UTF8String], DISPATCH_QUEUE_SERIAL);
         dispatch_queue_set_specific(_backgroundQueue, kProfileBackgroundQueueKey, (__bridge void *)self, NULL);
         lastProfilePersistenceTime = 0;
+        _piiKeys = CLTAP_ENCRYPTION_PII_DATA;
         [self runOnBackgroundQueue:^{
             @synchronized (self->localProfileForSession) {
+                // migrate to new persisted ct-accid-guid-userprofile
+                [CTUserInfoMigrator migrateUserInfoFileForAccountID:self->_config.accountId deviceID:self->_deviceInfo.deviceId];
+
                 self->localProfileForSession = [self _inflateLocalProfile];
                 for (NSString* key in [profileValues allKeys]) {
                     [self setProfileFieldWithKey:key andValue:profileValues[key]];
@@ -81,9 +97,12 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
 
 - (void)changeUser {
     localProfileUpdateExpiryStore = [NSMutableDictionary new];
-    localProfileForSession = [NSMutableDictionary dictionary];
-    // this will remove the old profile from the file system
-    [self _persistLocalProfileAsync];
+    localProfileForSession = [NSMutableDictionary new];
+    [self runOnBackgroundQueue:^{
+        @synchronized (self->localProfileForSession) {
+            self->localProfileForSession = [self _inflateLocalProfile];
+        }
+    }];
     [self clearStoredEvents];
 }
 
@@ -91,11 +110,11 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
 #pragma mark - UIApplication State and Events
 
 - (void)applicationDidEnterBackground:(NSNotification *)notification {
-    [self _persistLocalProfileAsync];
+    [self _persistLocalProfileInBackground];
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
-    [self _persistLocalProfileAsync];
+    [self _persistLocalProfileInBackground];
 }
 
 /*!
@@ -106,7 +125,7 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     @try {
         // For App Launched events, force a dsync true
         NSString *eventType = event[@"type"];
-        if ([@"event" isEqualToString:eventType] && [CLTAP_APP_LAUNCHED_EVENT isEqualToString:event[@"evtName"]]) {
+        if ([@"event" isEqualToString:eventType] && [CLTAP_APP_LAUNCHED_EVENT isEqualToString:event[CLTAP_EVENT_NAME]]) {
             event[@"dsync"] = @YES;
             return;
         }
@@ -163,9 +182,9 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
  and set the last time to now.
  */
 - (void)persistEvent:(NSDictionary *)event  {
-    if (!event || !event[@"evtName"]) return;
+    if (!event || !event[CLTAP_EVENT_NAME]) return;
     [self runOnBackgroundQueue:^{
-        NSString *eventName = event[@"evtName"];
+        NSString *eventName = event[CLTAP_EVENT_NAME];
         NSDictionary *s = [self getStoredEvents];
         if (!s) s = @{};
         NSTimeInterval now = [[[NSDate alloc] init] timeIntervalSince1970];
@@ -409,6 +428,9 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
                 return nil;
             }
         }
+        else {
+            return nil;
+        }
     } @catch (NSException *e) {
         CleverTapLogInternal(self.config.logLevel, @"%@: Failed to process data sync from upstream: %@", self, e.debugDescription);
         return nil;
@@ -501,6 +523,73 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     }
 }
 
+- (NSDictionary<NSString *, NSDictionary<NSString *, id> *> *)getUserAttributeChangeProperties:(NSDictionary *)event {
+    NSMutableDictionary<NSString *, NSMutableDictionary<NSString *, id> *> *userAttributesChangeProperties = [NSMutableDictionary dictionary];
+    NSMutableDictionary<NSString *, id> *fieldsToPersistLocally = [NSMutableDictionary dictionary];
+    NSDictionary *profile = event[CLTAP_PROFILE];
+    if (!profile) {
+        return @{};
+    }
+    for (NSString *key in profile) {
+        if ([CLTAP_SKIP_KEYS_USER_ATTRIBUTE_EVALUATION containsObject: key]) {
+            continue;
+        }
+        id oldValue = [self getProfileFieldForKey:key];
+        id newValue = profile[key];
+        NSMutableDictionary *properties = [NSMutableDictionary dictionary];
+        if ([newValue isKindOfClass:[NSDictionary class]]) {
+            NSDictionary *obj = (NSDictionary *)newValue;
+            NSString *commandIdentifier = [[obj allKeys] firstObject];
+            id value = [obj objectForKey:commandIdentifier];
+            if ([commandIdentifier isEqualToString:kCLTAP_COMMAND_INCREMENT] ||
+                [commandIdentifier isEqualToString:kCLTAP_COMMAND_DECREMENT]) {
+                newValue = [CTProfileBuilder _getUpdatedValue:value forKey:key withCommand:commandIdentifier cachedValue:oldValue];
+            } else if ([commandIdentifier isEqualToString:kCLTAP_COMMAND_DELETE]) {
+                newValue = nil;
+                [self removeProfileFieldForKey:key];
+            }
+        } else if ([newValue isKindOfClass:[NSString class]]) {
+            // Remove the date prefix before evaluation and persisting
+            NSString *newValueStr = (NSString *)newValue;
+            if ([newValueStr hasPrefix:CLTAP_DATE_PREFIX]) {
+                newValue = @([[newValueStr substringFromIndex:[CLTAP_DATE_PREFIX length]] longLongValue]);
+            }
+        }
+        if (oldValue != nil && ![oldValue isKindOfClass:[NSArray class]]) {
+            [properties setObject:oldValue forKey:CLTAP_KEY_OLD_VALUE];
+        }
+        if (newValue != nil && ![newValue isKindOfClass:[NSArray class]]) {
+            [properties setObject:newValue forKey:CLTAP_KEY_NEW_VALUE];
+        }
+        
+        // Skip evaluation if both newValue or oldValue are null
+        if ([properties count] > 0) {
+            [userAttributesChangeProperties setObject:properties forKey:key];
+        }
+        // Need to persist only if the new profile value is not a null value
+        if (newValue != nil && newValue != oldValue) {
+            [fieldsToPersistLocally setObject:newValue forKey:key];
+        }
+    }
+    [self updateProfileFieldsLocally:fieldsToPersistLocally];
+    return userAttributesChangeProperties;
+}
+
+-(void) updateProfileFieldsLocally: (NSMutableDictionary<NSString *, id> *) fieldsToPersistLocally{
+    [self.dispatchQueueManager runSerialAsync:^{
+        [CTProfileBuilder build:fieldsToPersistLocally completionHandler:^(NSDictionary *customFields, NSDictionary *systemFields, NSArray<CTValidationResult*>*errors) {
+            if (systemFields) {
+                CleverTapLogInternal(self.config.logLevel, @"%@: Constructed system profile: %@", self, systemFields);
+                [self setProfileFields:systemFields];
+            }
+            if (customFields) {
+                CleverTapLogInternal(self.config.logLevel, @"%@: Constructed custom profile: %@", self, customFields);
+                [self setProfileFields:customFields];
+            }
+        }];
+    }];
+}
+
 - (void)setProfileFields:(NSDictionary *)fields {
     [self setProfileFields:fields fromUpstream:NO];
 }
@@ -574,7 +663,7 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     @try {
         @synchronized (localProfileForSession) {
             // DO NOT REMOVE IDENTITY
-            if ([key isEqualToString:@"Identity"]) {
+            if ([key isEqualToString:CLTAP_PROFILE_IDENTITY_KEY]) {
                 return;
             }
             
@@ -605,14 +694,16 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     id val = nil;
     
     @synchronized (localProfileForSession) {
-        val = localProfileForSession[key];
+        // CACHED VALUES HAVE a "user" PREFIX, SO PREPEND IT BEFORE SEARCHING CACHE
+        NSString *keyToSearch = [localProfileForSession.allKeys containsObject:key] ? key : [NSString stringWithFormat:@"user%@",key];
+        val = localProfileForSession[keyToSearch];
     }
     
     return val;
 }
 
 - (NSString *)profileFileName {
-    return [NSString stringWithFormat:@"clevertap-%@-userprofile.plist", self.config.accountId];
+    return [NSString stringWithFormat:@"clevertap-%@-%@-userprofile.plist", self.config.accountId, _deviceInfo.deviceId];
 }
 
 - (NSMutableDictionary *)_inflateLocalProfile {
@@ -621,7 +712,8 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     if (!_profile) {
         _profile = [NSMutableDictionary dictionary];
     }
-    return _profile;
+    NSMutableDictionary *updatedProfile = [self decryptPIIDataIfEncrypted:_profile];
+    return updatedProfile;
 }
 
 - (void)persistLocalProfileIfRequired {
@@ -634,12 +726,12 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
             }
         }
         if (shouldPersist) {
-            [self _persistLocalProfileAsync];
+            [self _persistLocalProfileAsyncWithCompletion:nil];
         }
     }];
 }
 
-- (void)_persistLocalProfileAsync {
+- (void)_persistLocalProfileAsyncWithCompletion:(void (^ _Nullable )(void))taskBlock {
     [self runOnBackgroundQueue:^{
         NSMutableDictionary *_profile;
         
@@ -653,8 +745,34 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
             self->lastProfilePersistenceTime = @([[[NSDate alloc] init] timeIntervalSince1970]);
         }
         
-        [CTPreferences archiveObject:_profile forFileName:[self profileFileName]];
+        NSMutableDictionary *updatedProfile = [self cryptValuesIfNeeded:_profile];
+        [CTPreferences archiveObject:updatedProfile forFileName:[self profileFileName] config:self->_config];
+        if (taskBlock) {
+            taskBlock();
+        }
     }];
+}
+
+- (void)_persistLocalProfileInBackground {
+    UIApplication *application = [CTUIUtils getSharedApplication];
+    UIBackgroundTaskIdentifier __block backgroundTask;
+    
+    void (^finishTaskHandler)(void) = ^(){
+        dispatch_async(self->_backgroundQueue, ^{
+            [application endBackgroundTask:backgroundTask];
+            backgroundTask = UIBackgroundTaskInvalid;
+        });
+    };
+    // Start background task to make sure it runs when the app is in background.
+    backgroundTask = [application beginBackgroundTaskWithExpirationHandler:finishTaskHandler];
+    
+    @try {
+        [self _persistLocalProfileAsyncWithCompletion:finishTaskHandler];
+    }
+    @catch (NSException *exception) {
+        CleverTapLogDebug(self.config.logLevel, @"%@: Exception caught: %@", self, [exception reason]);
+        finishTaskHandler();
+    }
 }
 
 
@@ -801,6 +919,44 @@ NSString* const kLocalCacheExpiry = @"local_cache_expiry";
     [self addPropertyFromStoreIfExists:@"tz" profile:profile storageKeys:@[CLTAP_SYS_TZ]];
     [self addPropertyFromStoreIfExists:@"Carrier" profile:profile storageKeys:@[CLTAP_SYS_CARRIER]];
     [self addPropertyFromStoreIfExists:@"cc" profile:profile storageKeys:@[CLTAP_SYS_CC]];
+    return profile;
+}
+
+- (NSMutableDictionary *)decryptPIIDataIfEncrypted:(NSMutableDictionary *)profile {
+    long lastEncryptionLevel = [CTPreferences getIntForKey:[CTUtils getKeyWithSuffix:CT_ENCRYPTION_KEY accountID:self.config.accountId] withResetValue:0];
+    [CTPreferences putInt:self.config.encryptionLevel forKey:[CTUtils getKeyWithSuffix:CT_ENCRYPTION_KEY accountID:self.config.accountId]];
+    if (lastEncryptionLevel == CleverTapEncryptionMedium && self.config.aesCrypt) {
+        // Always store the local profile data in decrypted values.
+        NSMutableDictionary *updatedProfile = [NSMutableDictionary new];
+        for (NSString *key in profile) {
+            if ([_piiKeys containsObject:key]) {
+                NSString *value = [NSString stringWithFormat:@"%@",profile[key]];
+                NSString *decryptedString = [self.config.aesCrypt getDecryptedString:value];
+                updatedProfile[key] = decryptedString;
+            } else {
+                updatedProfile[key] = profile[key];
+            }
+        }
+        return updatedProfile;
+    }
+    
+    return profile;
+}
+
+- (NSMutableDictionary *)cryptValuesIfNeeded:(NSMutableDictionary *)profile {
+    if (self.config.encryptionLevel == CleverTapEncryptionMedium && self.config.aesCrypt) {
+        NSMutableDictionary *updatedProfile = [NSMutableDictionary new];
+        for (NSString *key in profile) {
+            if ([_piiKeys containsObject:key]) {
+                NSString *value = [NSString stringWithFormat:@"%@",profile[key]];
+                updatedProfile[key] = [self.config.aesCrypt getEncryptedString:value];
+            } else {
+                updatedProfile[key] = profile[key];
+            }
+        }
+        return updatedProfile;
+    }
+
     return profile;
 }
 

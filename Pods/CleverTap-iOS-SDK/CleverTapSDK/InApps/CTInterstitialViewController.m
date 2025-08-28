@@ -142,13 +142,16 @@
     
     self.closeButton.hidden = !self.notification.showCloseButton;
     
-    if (self.notification.image) {
+    if (self.notification.inAppImage) {
+        self.imageView.contentMode = UIViewContentModeScaleAspectFit;
+        self.imageView.image = self.notification.inAppImage;
+    } else if (self.notification.imageData) {
         self.imageView.contentMode = UIViewContentModeScaleAspectFit;
         if ([self.notification.contentType isEqualToString:@"image/gif"] ) {
-            SDAnimatedImage *gif = [SDAnimatedImage imageWithData:self.notification.image];
+            SDAnimatedImage *gif = [SDAnimatedImage imageWithData:self.notification.imageData];
             self.imageView.image = gif;
         } else {
-            self.imageView.image = [UIImage imageWithData:self.notification.image];
+            self.imageView.image = [UIImage imageWithData:self.notification.imageData];
         }
     }
     

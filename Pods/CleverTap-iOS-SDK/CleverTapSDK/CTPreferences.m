@@ -25,7 +25,7 @@
     [defaults synchronize];
 }
 
-+ (NSString *)getStringForKey:(NSString *)key withResetValue:(NSString *)resetValue {
++ (NSString *_Nullable)getStringForKey:(NSString *_Nonnull)key withResetValue:(NSString *_Nullable)resetValue {
     key = [NSString stringWithFormat:@"%@%@", PREF_PREFIX, key];
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     id value = [defaults objectForKey:key];
@@ -92,7 +92,7 @@
     }
 }
 
-+ (id)unarchiveFromFile:(NSString *)filename ofTypes:(nonnull NSSet<Class> *)classes removeFile:(BOOL)remove {
++ (id _Nullable)unarchiveFromFile:(NSString *_Nonnull)filename ofTypes:(nonnull NSSet<Class> *)classes removeFile:(BOOL)remove {
     id data = nil;
     NSError *error = nil;
     NSString *filePath = [self filePathfromFileName:filename];
@@ -107,7 +107,10 @@
                 CleverTapLogStaticInternal(@"%@ unarchived data from %@: %@", self, filePath, data);
             }
         } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             data = [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
+#pragma clang diagnostic pop
             CleverTapLogStaticInternal(@"%@ unarchived data from %@: %@", self, filePath, data);
         }
     }
@@ -119,7 +122,7 @@
     return data;
 }
 
-+ (id)unarchiveFromFile:(NSString *)filename ofType:(Class)cls  removeFile:(BOOL)remove {
++ (id _Nullable)unarchiveFromFile:(NSString *_Nonnull)filename ofType:(Class _Nonnull)cls  removeFile:(BOOL)remove{
     id data = nil;
     NSError *error = nil;
     
@@ -131,11 +134,16 @@
             if (newData == NULL) {
                 CleverTapLogStaticInternal(@"%@ file not found %@", self, filePath);
             } else {
-                data = [NSKeyedUnarchiver unarchivedObjectOfClass:cls fromData:newData error:&error];
+                // Allow NSString, NSDictionary, NSNumber and NSSet unarchiving
+                NSSet *allowedClasses = [NSSet setWithObjects:cls, [NSArray class], [NSString class], [NSDictionary class], [NSNumber class], nil];
+                data = [NSKeyedUnarchiver unarchivedObjectOfClasses:allowedClasses fromData:newData error:&error];
                 CleverTapLogStaticInternal(@"%@ unarchived data from %@: %@", self, filePath, data);
             }
         } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
             data = [NSKeyedUnarchiver unarchiveObjectWithFile:filePath];
+#pragma clang diagnostic pop
             CleverTapLogStaticInternal(@"%@ unarchived data from %@: %@", self, filePath, data);
         }
     }
@@ -148,7 +156,7 @@
     return data;
 }
 
-+ (BOOL)archiveObject:(id)object forFileName:(NSString *)filename {
++ (BOOL)archiveObject:(id)object forFileName:(NSString *)filename config: (CleverTapInstanceConfig *)config {
     
     NSString *filePath = [self filePathfromFileName:filename];
     NSError *archiveError = nil;
@@ -159,7 +167,8 @@
     
     if (@available(iOS 11.0, tvOS 11.0, *)) {
         NSData *data = [NSKeyedArchiver archivedDataWithRootObject:object requiringSecureCoding:NO error:&archiveError];
-        [data writeToFile:filePath options:NSDataWritingAtomic error:&writeError];
+        NSDataWritingOptions fileProtectionOption = config.enableFileProtection ? NSDataWritingFileProtectionComplete : NSDataWritingAtomic;
+        success = [data writeToFile:filePath options:fileProtectionOption error:&writeError];
         if (archiveError) {
             CleverTapLogStaticInternal(@"%@ failed to archive data at %@: %@", self, filePath, archiveError);
         }
@@ -167,7 +176,10 @@
             CleverTapLogStaticInternal(@"%@ failed to write data at %@: %@", self, filePath, writeError);
         }
     } else {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
         success = [NSKeyedArchiver archiveRootObject:object toFile:filePath];
+#pragma clang diagnostic pop
         if (!success) {
             CleverTapLogStaticInternal(@"%@ failed to archive data to %@: %@", self, filePath, object);
         }
@@ -175,7 +187,7 @@
     return success;
 }
 
-+ (NSString *)storageKeyWithSuffix: (NSString *)suffix config: (CleverTapInstanceConfig*)config {
++ (NSString * _Nonnull)storageKeyWithSuffix: (NSString * _Nonnull)suffix config: (CleverTapInstanceConfig* _Nonnull)config {
     return [NSString stringWithFormat:@"%@:%@", config.accountId, suffix];
 }
 

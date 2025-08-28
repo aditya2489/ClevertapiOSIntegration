@@ -21,6 +21,7 @@
 		7666D5AD29E40B5F00843FC4 /* MainInterface.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 7666D5AB29E40B5F00843FC4 /* MainInterface.storyboard */; };
 		7666D5B129E40B5F00843FC4 /* PushTemplateIOS.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7666D5A329E40B5F00843FC4 /* PushTemplateIOS.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		76AE347129237D4100060D6B /* NativeDisplay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AE347029237D4100060D6B /* NativeDisplay.swift */; };
+		76BC04CB2A17A4CC00F274A3 /* AppDelegate-Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76BC04CA2A17A4CC00F274A3 /* AppDelegate-Ext.swift */; };
 		76D7A9F429C58EA000D81453 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76D7A9F329C58EA000D81453 /* NotificationService.swift */; };
 		76D7A9F829C58EA000D81453 /* RichPushImpressions.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 76D7A9F129C58EA000D81453 /* RichPushImpressions.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E58E6374A9968748DBD6F3F4 /* Pods_clevertapiosintegration2_RichPushImpressions.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D47B12BA259F9B8024E72DD0 /* Pods_clevertapiosintegration2_RichPushImpressions.framework */; };
@@ -77,6 +78,7 @@
 		7666D5AC29E40B5F00843FC4 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/MainInterface.storyboard; sourceTree = "<group>"; };
 		7666D5AE29E40B5F00843FC4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		76AE347029237D4100060D6B /* NativeDisplay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDisplay.swift; sourceTree = "<group>"; };
+		76BC04CA2A17A4CC00F274A3 /* AppDelegate-Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate-Ext.swift"; sourceTree = "<group>"; };
 		76D7A9EC29C5842800D81453 /* clevertapiosintegration2Debug.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = clevertapiosintegration2Debug.entitlements; sourceTree = "<group>"; };
 		76D7A9F129C58EA000D81453 /* RichPushImpressions.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = RichPushImpressions.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		76D7A9F329C58EA000D81453 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -154,6 +156,7 @@
 				7615675429228C2C0096A098 /* LaunchScreen.storyboard */,
 				7615675729228C2C0096A098 /* Info.plist */,
 				76AE347029237D4100060D6B /* NativeDisplay.swift */,
+				76BC04CA2A17A4CC00F274A3 /* AppDelegate-Ext.swift */,
 			);
 			path = clevertapiosintegration2;
 			sourceTree = "<group>";
@@ -426,6 +429,7 @@
 			files = (
 				7615674E29228C2B0096A098 /* ViewController.swift in Sources */,
 				7615674A29228C2B0096A098 /* AppDelegate.swift in Sources */,
+				76BC04CB2A17A4CC00F274A3 /* AppDelegate-Ext.swift in Sources */,
 				7615674C29228C2B0096A098 /* SceneDelegate.swift in Sources */,
 				76AE347129237D4100060D6B /* NativeDisplay.swift in Sources */,
 			);
@@ -617,6 +621,8 @@
 				DEVELOPMENT_TEAM = 6MY4LZCCZA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = clevertapiosintegration2/Info.plist;
+				INFOPLIST_KEY_NSLocationUsageDescription = "We need Permission to capture Location";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Please Allow";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -647,6 +653,8 @@
 				DEVELOPMENT_TEAM = 6MY4LZCCZA;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = clevertapiosintegration2/Info.plist;
+				INFOPLIST_KEY_NSLocationUsageDescription = "We need Permission to capture Location";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Please Allow";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;

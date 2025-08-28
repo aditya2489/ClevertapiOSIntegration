@@ -14,8 +14,8 @@
             filePath = "clevertapiosintegration2/ViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "149"
-            endingLineNumber = "149"
+            startingLineNumber = "216"
+            endingLineNumber = "216"
             landmarkName = "displayUnitsUpdated(_:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -23,32 +23,16 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "F25FE37B-5D34-4848-9552-5EF3FD7C8CA7"
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "clevertapiosintegration2/AppDelegate.swift"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "60"
-            endingLineNumber = "60"
-            landmarkName = "userNotificationCenter(_:didReceive:withCompletionHandler:)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            uuid = "A492E61A-E2B3-4071-A131-19FD1F5C0F42"
+            uuid = "A31B3DA9-E8DE-44CF-AB2C-B489CCFBE608"
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "RichPushImpressions/NotificationService.swift"
+            filePath = "clevertapiosintegration2/ViewController.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "38"
-            endingLineNumber = "38"
-            landmarkName = "didReceive(_:withContentHandler:)"
+            startingLineNumber = "140"
+            endingLineNumber = "140"
+            landmarkName = "getAppInboxMesage()"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>

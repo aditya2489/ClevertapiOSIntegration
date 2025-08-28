@@ -8,35 +8,35 @@
 import UIKit
 import CleverTapSDK
 import UserNotifications
+import mParticle_Apple_SDK
+
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate,UNUserNotificationCenterDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate,CleverTapURLDelegate {
     
-    
+    let center = UNUserNotificationCenter.current()
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        let options = MParticleOptions(key: "us1-881184b95665d64db3fce759331d4d23",
+                                               secret: "MKpk0g_UuHhTVh7NgGC7Z_kpYT6LVOvdex7tR1z-1EjyhQg-X10Odwxh-cAOCM_u")
+        options.logLevel = MPILogLevel.verbose
+        MParticle.sharedInstance().start(with: options)
+        
         CleverTap.autoIntegrate()
-        registerForPush()
         CleverTap.setDebugLevel(3)
+        CleverTap.setDebugLevel(CleverTapLogLevel.debug.rawValue)
         CleverTap.sharedInstance()?.setInAppNotificationDelegate(Test())
+        CleverTap.sharedInstance()?.setUrlDelegate(self)
+
         // Override point for customization after application launch.
         return true
     }
     
-    func registerForPush() {
-        // Register for Push notifications
-        UNUserNotificationCenter.current().delegate = self
-        // request Permissions
-        UNUserNotificationCenter.current().requestAuthorization(options: [.sound, .badge, .alert], completionHandler: {granted, error in
-            if granted {
-                DispatchQueue.main.async {
-                    UIApplication.shared.registerForRemoteNotifications()
-                }
-            }
-        })
+    public func shouldHandleCleverTap(_ url: URL?, for channel: CleverTapChannel) -> Bool {
+        print("Handling URL: \(url!) for channel: \(channel)")
+        return true
     }
-    
-    // MARK: UISceneSession Lifecycle
+        
     
     func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
         return UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
@@ -53,35 +53,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate,UNUserNotificationCenterDe
         NSLog("%@: registered for remote notifications: %@", self.description, deviceToken.description)
     }
     
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                didReceive response: UNNotificationResponse,
-                                withCompletionHandler completionHandler: @escaping () -> Void) {
-        
-        NSLog("%@: did receive notification response: %@", self.description, response.notification.request.content.userInfo)
-        //CleverTap.sharedInstance()?.handleNotification(withData: response.notification.request.content.userInfo)
-        //CleverTap.sharedInstance()?.handleNotification(withData: response.notification.request.content.userInfo)
-        completionHandler()
-    }
     
-    @available(iOS 10.0, *)
-    func userNotificationCenter(_ center: UNUserNotificationCenter,
-                                willPresent notification: UNNotification,
-                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-        
-        NSLog("%@: will present notification: %@", self.description, notification.request.content.userInfo)
-        
-        //let sharedDefault = UserDefaults(suiteName: "group.com.biswa.Test")!
-        
-        //let identity = sharedDefault.string(forKey: "identity") ?? ""
-        //let email = sharedDefault.string(forKey: "email") ?? ""
-        
-        //if(identity == "" && email == ""){
-        //    print("CT id ----------",CleverTap.sharedInstance()?.profileGetID() ?? "")
-        //    CleverTap.sharedInstance()?.recordNotificationViewedEvent(withData: notification.request.content.userInfo)
-        //}
-        //CleverTap.sharedInstance()?.handleNotification(withData: notification.request.content.userInfo, openDeepLinksInForeground: true)
-        completionHandler([.badge, .sound, .alert])
-    }
     
     func application(_ application: UIApplication,
                      didReceiveRemoteNotification userInfo: [AnyHashable : Any],
@@ -102,6 +74,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate,UNUserNotificationCenterDe
         }
         
     }
+    
+    
+    func registerForPush() {
+            // Register for Push notifications
+            UNUserNotificationCenter.current().delegate = self
+            // request Permissions
+            UNUserNotificationCenter.current().requestAuthorization(options: [.sound, .badge, .alert], completionHandler: {granted, error in
+                if granted {
+                    DispatchQueue.main.async {
+                        UIApplication.shared.registerForRemoteNotifications()
+                    }
+                }
+            })
+        }
     
     
 }
